@@ -1,17 +1,7 @@
-spring:
-  application:
-    name: coffee-order
-  
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:local}
+# Local Development Profile
+# This file is loaded when spring.profiles.active=local
 
----
-# Local Profile
 spring:
-  config:
-    activate:
-      on-profile: local
-  
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:coffee_order}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
@@ -97,7 +87,7 @@ cache:
   popular-menu:
     ttl: 300
     key-prefix: "popular:menu:"
-  
+
 # Distributed Lock Configuration
 lock:
   point:
@@ -113,34 +103,3 @@ kafka:
     order-created: order.created
     point-charged: point.charged
     point-used: point.used
-
----
-# Test Profile
-spring:
-  config:
-    activate:
-      on-profile: test
-  
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/coffee_order_test?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
-    username: coffee_user
-    password: coffee_password
-  
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-  
-  data:
-    redis:
-      host: localhost
-      port: 6379
-  
-  kafka:
-    bootstrap-servers: localhost:9092
-
-logging:
-  level:
-    root: INFO
-    kr.spartaclub.coffeeorder: DEBUG
