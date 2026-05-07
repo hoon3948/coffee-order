@@ -1,8 +1,5 @@
-package kr.spartaclub.coffeeorder.config;
+package kr.spartaclub.coffeeorder.global.config;
 
-import kr.spartaclub.coffeeorder.security.JwtAuthenticationFilter;
-import kr.spartaclub.coffeeorder.security.JwtTokenProvider;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -14,6 +11,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import kr.spartaclub.coffeeorder.global.security.JwtAuthenticationFilter;
+import kr.spartaclub.coffeeorder.global.security.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Spring Security 설정
@@ -67,10 +68,10 @@ public class SecurityConfig {
                                 "/error"                     // Error 페이지
                         ).permitAll()
                         
-                        // 관리자만 접근 가능한 경로
+                        // 관리자 경로 (추가 권한 체크는 @PreAuthorize로 처리)
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         
-                        // 그 외 모든 요청은 인증 필요
+                        // 그 외 모든 요청은 인증 필요 (세부 권한은 @PreAuthorize로 처리)
                         .anyRequest().authenticated()
                 )
                 

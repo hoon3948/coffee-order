@@ -1,4 +1,4 @@
-package kr.spartaclub.coffeeorder.security;
+package kr.spartaclub.coffeeorder.global.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

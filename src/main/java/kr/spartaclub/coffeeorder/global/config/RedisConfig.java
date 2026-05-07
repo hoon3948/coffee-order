@@ -1,4 +1,4 @@
-package kr.spartaclub.coffeeorder.config;
+package kr.spartaclub.coffeeorder.global.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

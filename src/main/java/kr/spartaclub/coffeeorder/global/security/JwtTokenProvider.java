@@ -1,9 +1,13 @@
-package kr.spartaclub.coffeeorder.security;
+package kr.spartaclub.coffeeorder.global.security;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.stream.Collectors;
+
+import javax.crypto.SecretKey;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -13,12 +17,14 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.stream.Collectors;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * JWT 토큰 생성 및 검증을 담당하는 Provider
@@ -30,8 +36,11 @@ public class JwtTokenProvider {
     @Value("${jwt.secret}")
     private String secretKey;
 
-    @Value("${jwt.expiration}")
-    private long tokenValidityInMilliseconds;
+    @Value("${jwt.access-token-expiration}")
+    private long accessTokenValidityInMilliseconds;
+
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenValidityInMilliseconds;
 
     private SecretKey key;
 
@@ -44,19 +53,42 @@ public class JwtTokenProvider {
     }
 
     /**
-     * JWT 토큰 생성
+     * Access Token 생성
      * @param userId 사용자 ID
      * @param email 사용자 이메일
      * @param role 사용자 역할
+     * @return JWT Access Token 문자열
+     */
+    public String createAccessToken(Long userId, String email, String role) {
+        return createToken(userId, email, role, accessTokenValidityInMilliseconds);
+    }
+
+    /**
+     * Refresh Token 생성
+     * @param userId 사용자 ID
+     * @param email 사용자 이메일
+     * @param role 사용자 역할
+     * @return JWT Refresh Token 문자열
+     */
+    public String createRefreshToken(Long userId, String email, String role) {
+        return createToken(userId, email, role, refreshTokenValidityInMilliseconds);
+    }
+
+    /**
+     * JWT 토큰 생성 (내부 메서드)
+     * @param userId 사용자 ID
+     * @param email 사용자 이메일
+     * @param role 사용자 역할
+     * @param validityInMilliseconds 유효 기간 (밀리초)
      * @return JWT 토큰 문자열
      */
-    public String createToken(Long userId, String email, String role) {
+    private String createToken(Long userId, String email, String role, long validityInMilliseconds) {
         Claims claims = Jwts.claims().subject(email).build();
         claims.put("userId", userId);
         claims.put("role", role);
 
         Date now = new Date();
-        Date validity = new Date(now.getTime() + tokenValidityInMilliseconds);
+        Date validity = new Date(now.getTime() + validityInMilliseconds);
 
         return Jwts.builder()
                 .claims(claims)

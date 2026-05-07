@@ -1,4 +1,4 @@
-package kr.spartaclub.coffeeorder.config;
+package kr.spartaclub.coffeeorder.global.config;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;

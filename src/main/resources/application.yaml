@@ -90,7 +90,8 @@ logging:
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:your-secret-key-change-this-in-production-min-256-bits-required-for-hs256-algorithm}
-  expiration: ${JWT_EXPIRATION:3600000}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600000}  # 1시간
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:86400000}  # 24시간
 
 # Redis Cache Configuration
 cache:
@@ -122,23 +123,39 @@ spring:
       on-profile: test
   
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/coffee_order_test?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
-    username: coffee_user
-    password: coffee_password
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
   
   jpa:
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+    show-sql: false
   
+  # Redis 설정 (테스트용 - 실제로는 사용하지 않지만 빈 생성을 위해 필요)
   data:
     redis:
       host: localhost
       port: 6379
+      password: ""
   
-  kafka:
-    bootstrap-servers: localhost:9092
+  # Redis와 Kafka 자동 설정 비활성화
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+# Kafka Topics (테스트용)
+kafka:
+  topics:
+    order-created: test.order.created
+    point-charged: test.point.charged
+    point-used: test.point.used
 
 logging:
   level:

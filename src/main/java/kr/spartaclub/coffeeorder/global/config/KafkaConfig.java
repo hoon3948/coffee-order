@@ -1,4 +1,4 @@
-package kr.spartaclub.coffeeorder.config;
+package kr.spartaclub.coffeeorder.global.config;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
