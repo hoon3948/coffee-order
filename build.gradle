@@ -38,6 +38,7 @@ dependencies {
     
     // Database
     runtimeOnly 'com.mysql:mysql-connector-j'
+    testRuntimeOnly 'com.h2database:h2'  // 테스트용 H2 데이터베이스
     
     // QueryDSL
     implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
@@ -58,6 +59,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testImplementation 'org.mockito:mockito-core'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
