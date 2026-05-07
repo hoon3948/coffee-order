@@ -14,20 +14,16 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
-        show_sql: false
     show-sql: false
 
-  # Redis 설정 (테스트용 - 임베디드 Redis 또는 모킹)
+  # Redis 설정 (테스트용 - 실제로는 사용하지 않지만 빈 생성을 위해 필요)
   data:
     redis:
       host: localhost
       port: 6379
+      password: ""
 
-  # Kafka 설정 (테스트에서는 자동 설정 비활성화)
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-
-  # 자동 설정 제외
+  # Redis와 Kafka 자동 설정 비활성화
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
@@ -38,6 +34,13 @@ jwt:
   secret: test-secret-key-for-jwt-token-generation-minimum-256-bits-required-for-hs256-algorithm
   access-token-expiration: 3600000  # 1시간
   refresh-token-expiration: 86400000  # 24시간
+
+# Kafka Topics (테스트용)
+kafka:
+  topics:
+    order-created: test.order.created
+    point-charged: test.point.charged
+    point-used: test.point.used
 
 # 로깅 설정
 logging:
