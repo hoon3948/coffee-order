@@ -1,7 +1,5 @@
 package kr.spartaclub.coffeeorder.domain.point.controller;
 
-import kr.spartaclub.coffeeorder.domain.point.entity.UserPointHistory;
-import kr.spartaclub.coffeeorder.domain.point.service.UserPointService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -15,11 +13,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
-import kr.spartaclub.coffeeorder.global.common.response.ApiResponse;
 import kr.spartaclub.coffeeorder.domain.point.dto.ChargePointRequest;
 import kr.spartaclub.coffeeorder.domain.point.dto.PointHistoryResponse;
 import kr.spartaclub.coffeeorder.domain.point.dto.PointResponse;
+import kr.spartaclub.coffeeorder.domain.point.entity.UserPointHistory;
+import kr.spartaclub.coffeeorder.domain.point.service.UserPointService;
+import kr.spartaclub.coffeeorder.global.common.response.ApiResponse;
 import kr.spartaclub.coffeeorder.global.security.CurrentUser;
+import kr.spartaclub.coffeeorder.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,7 +41,8 @@ public class UserPointController {
      */
     @PreAuthorize("hasRole('USER')")
     @GetMapping
-    public ResponseEntity<ApiResponse<PointResponse>> getBalance(@CurrentUser Long userId) {
+    public ResponseEntity<ApiResponse<PointResponse>> getBalance(@CurrentUser UserPrincipal principal) {
+        Long userId = principal.getUserId();
         log.info("포인트 잔액 조회: userId={}", userId);
 
         int balance = userPointService.getBalance(userId);
@@ -56,9 +58,10 @@ public class UserPointController {
     @PreAuthorize("hasRole('USER')")
     @PostMapping("/charge")
     public ResponseEntity<ApiResponse<PointResponse>> chargePoint(
-            @CurrentUser Long userId,
+            @CurrentUser UserPrincipal principal,
             @Valid @RequestBody ChargePointRequest request
     ) {
+        Long userId = principal.getUserId();
         log.info("포인트 충전 요청: userId={}, amount={}", userId, request.getAmount());
 
         int balance = userPointService.chargePoint(userId, request.getAmount());
@@ -78,10 +81,11 @@ public class UserPointController {
     @PreAuthorize("hasRole('USER')")
     @GetMapping("/history")
     public ResponseEntity<ApiResponse<Page<PointHistoryResponse>>> getPointHistory(
-            @CurrentUser Long userId,
+            @CurrentUser UserPrincipal principal,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
+        Long userId = principal.getUserId();
         log.info("포인트 이력 조회: userId={}, page={}, size={}",
                 userId, pageable.getPageNumber(), pageable.getPageSize());
 

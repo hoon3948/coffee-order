@@ -1,24 +1,31 @@
 package kr.spartaclub.coffeeorder.domain.order.controller;
 
-import jakarta.validation.Valid;
-import kr.spartaclub.coffeeorder.global.common.response.ApiResponse;
-import kr.spartaclub.coffeeorder.domain.order.dto.CreateOrderRequest;
-import kr.spartaclub.coffeeorder.domain.order.dto.OrderHistoryResponse;
-import kr.spartaclub.coffeeorder.domain.order.dto.OrderResponse;
-import kr.spartaclub.coffeeorder.domain.order.service.OrderService;
-import kr.spartaclub.coffeeorder.global.security.CurrentUser;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.Map;
+
+import kr.spartaclub.coffeeorder.global.security.UserPrincipal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
+import jakarta.validation.Valid;
+import kr.spartaclub.coffeeorder.domain.order.dto.CreateOrderRequest;
+import kr.spartaclub.coffeeorder.domain.order.dto.OrderHistoryResponse;
+import kr.spartaclub.coffeeorder.domain.order.dto.OrderResponse;
+import kr.spartaclub.coffeeorder.domain.order.service.OrderService;
+import kr.spartaclub.coffeeorder.global.common.response.ApiResponse;
+import kr.spartaclub.coffeeorder.global.security.CurrentUser;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 주문 컨트롤러
@@ -38,9 +45,10 @@ public class OrderController {
     @PreAuthorize("hasRole('USER')")
     @PostMapping
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder(
-            @CurrentUser Long userId,
+            @CurrentUser UserPrincipal principal,
             @Valid @RequestBody CreateOrderRequest request
     ) {
+        Long userId = principal.getUserId();
         log.info("주문 생성 요청: userId={}, menuId={}", userId, request.getMenuId());
 
         OrderResponse order = orderService.createOrder(userId, request);
@@ -56,10 +64,11 @@ public class OrderController {
     @PreAuthorize("hasRole('USER')")
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> getOrderHistory(
-            @CurrentUser Long userId,
+            @CurrentUser UserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
+        Long userId = principal.getUserId();
         log.info("주문 내역 조회: userId={}, page={}, size={}", userId, page, size);
 
         Pageable pageable = PageRequest.of(page, size);
@@ -82,9 +91,10 @@ public class OrderController {
     @PreAuthorize("hasRole('USER')")
     @GetMapping("/recent")
     public ResponseEntity<ApiResponse<Map<String, List<OrderHistoryResponse>>>> getRecentOrders(
-            @CurrentUser Long userId,
+            @CurrentUser UserPrincipal principal,
             @RequestParam(defaultValue = "10") int limit
     ) {
+        Long userId = principal.getUserId();
         log.info("최근 주문 내역 조회: userId={}, limit={}", userId, limit);
 
         List<OrderHistoryResponse> orders = orderService.getRecentOrders(userId, limit);

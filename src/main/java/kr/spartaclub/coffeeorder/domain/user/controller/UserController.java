@@ -6,11 +6,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import kr.spartaclub.coffeeorder.global.common.response.ApiResponse;
 import kr.spartaclub.coffeeorder.domain.user.dto.UserResponse;
 import kr.spartaclub.coffeeorder.domain.user.entity.User;
 import kr.spartaclub.coffeeorder.domain.user.service.UserService;
+import kr.spartaclub.coffeeorder.global.common.response.ApiResponse;
 import kr.spartaclub.coffeeorder.global.security.CurrentUser;
+import kr.spartaclub.coffeeorder.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,7 +32,8 @@ public class UserController {
      */
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<UserResponse>> getMyInfo(@CurrentUser Long userId) {
+    public ResponseEntity<ApiResponse<UserResponse>> getMyInfo(@CurrentUser UserPrincipal principal) {
+        Long userId = principal.getUserId();
         log.info("내 정보 조회: userId={}", userId);
 
         User user = userService.getUser(userId);
