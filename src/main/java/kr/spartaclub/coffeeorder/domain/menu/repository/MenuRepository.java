@@ -1,14 +1,15 @@
 package kr.spartaclub.coffeeorder.domain.menu.repository;
 
-import kr.spartaclub.coffeeorder.domain.menu.entity.Menu;
-import kr.spartaclub.coffeeorder.domain.menu.enums.MenuStatus;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
+import kr.spartaclub.coffeeorder.domain.menu.entity.Menu;
+import kr.spartaclub.coffeeorder.domain.menu.enums.MenuStatus;
 
 /**
  * 메뉴 Repository
@@ -51,4 +52,12 @@ public interface MenuRepository extends JpaRepository<Menu, Long> {
      */
     @Query("SELECT m FROM Menu m WHERE m.id = :menuId")
     Optional<Menu> findByIdIncludingDeleted(@Param("menuId") Long menuId);
+
+    /**
+     * 메뉴 ID 목록으로 조회 (삭제된 것 포함)
+     * @param menuIds 메뉴 ID 목록
+     * @return 메뉴 목록
+     */
+    @Query("SELECT m FROM Menu m WHERE m.id IN :menuIds")
+    List<Menu> findAllByIdIncludingDeleted(@Param("menuIds") List<Long> menuIds);
 }

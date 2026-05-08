@@ -77,9 +77,17 @@ coffee-order/
 │   ├── main/
 │   │   ├── java/
 │   │   │   └── kr/spartaclub/coffeeorder/
-│   │   │       ├── config/       # 설정 클래스
+│   │   │       ├── common/       # 공통 클래스 (BaseTimeEntity 등)
 │   │   │       ├── domain/       # 도메인 모델
-│   │   │       ├── security/     # 보안 관련
+│   │   │       │   ├── auth/     # 인증
+│   │   │       │   ├── menu/     # 메뉴
+│   │   │       │   ├── order/    # 주문 (Order, OrderItem)
+│   │   │       │   ├── point/    # 포인트
+│   │   │       │   └── user/     # 사용자
+│   │   │       ├── global/       # 전역 설정
+│   │   │       │   ├── config/   # 설정 클래스
+│   │   │       │   ├── security/ # 보안 관련 (JWT, UserPrincipal)
+│   │   │       │   └── common/   # 공통 예외, 응답
 │   │   │       └── CoffeeOrderApplication.java
 │   │   └── resources/
 │   │       ├── application.yaml
@@ -99,8 +107,8 @@ coffee-order/
 - 포인트 잔액 조회
 - 메뉴 목록 조회
 - 인기 메뉴 조회 (최근 7일 기준 TOP 3)
-- 메뉴 주문 (포인트 차감)
-- 주문 내역 조회
+- **메뉴 주문 (여러 메뉴 + 수량 지정 가능, 포인트 차감)**
+- 주문 내역 조회 (페이지네이션 지원)
 
 ### 관리자 기능
 - 메뉴 등록
@@ -112,20 +120,52 @@ coffee-order/
 
 JWT (JSON Web Token) 기반 인증을 사용합니다.
 
-### 로그인 후 토큰 사용 예시
+### API 사용 예시
 
+#### 1. 로그인
 ```bash
-# 로그인
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user1@example.com","password":"user123"}'
+```
 
-# 응답에서 받은 토큰을 사용
-curl -X GET http://localhost:8080/api/v1/users/me \
+#### 2. 메뉴 조회 (인증 필요)
+```bash
+curl -X GET http://localhost:8080/api/v1/menus \
+  -H "Authorization: Bearer {your-jwt-token}"
+```
+
+#### 3. 주문 생성 (여러 메뉴 주문)
+```bash
+curl -X POST http://localhost:8080/api/v1/orders \
+  -H "Authorization: Bearer {your-jwt-token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {"menuId": 1, "quantity": 2},
+      {"menuId": 2, "quantity": 1}
+    ]
+  }'
+```
+
+#### 4. 주문 내역 조회
+```bash
+curl -X GET "http://localhost:8080/api/v1/orders?page=0&size=20" \
   -H "Authorization: Bearer {your-jwt-token}"
 ```
 
 ## 🗄 데이터베이스
+
+### 테이블 구조
+
+주요 테이블:
+- **users**: 사용자 정보
+- **user_points**: 사용자 포인트 잔액
+- **user_point_history**: 포인트 충전/사용 이력
+- **menus**: 메뉴 정보
+- **orders**: 주문 정보 (총 금액)
+- **order_items**: 주문 상세 (메뉴별 수량, 단가)
+- **menu_statistics**: 메뉴별 일일 주문 통계
 
 ### 초기 데이터
 
@@ -194,6 +234,22 @@ kafka-topics --bootstrap-server localhost:9092 --describe --topic order.created
 1. **Redis 분산 락**: 여러 서버 인스턴스 간 동시 접근 제어
 2. **MySQL 비관적 락**: 단일 서버 내 트랜잭션 격리
 
+### 주문 프로세스
+```
+1. Redis 분산 락 획득 (lock:user:{userId}:point)
+2. 트랜잭션 시작
+3. 모든 메뉴 정보 조회 및 검증
+4. 총 결제 금액 계산 (각 메뉴 가격 × 수량의 합)
+5. 비관적 락으로 포인트 조회 (SELECT ... FOR UPDATE)
+6. 포인트 차감
+7. 주문 생성 (총 금액 저장)
+8. 주문 상세 생성 (각 메뉴별 수량, 단가 저장)
+9. 메뉴 통계 업데이트 (수량만큼 증가)
+10. Kafka 이벤트 발행
+11. 트랜잭션 커밋
+12. Redis 분산 락 해제
+```
+
 자세한 내용은 [동시성 제어 설계서](docs/SA/09-동시성-제어-설계서.md)를 참고하세요.
 
 ## 📚 문서
@@ -245,6 +301,28 @@ REDIS_PORT=6380
 SERVER_PORT=8081
 ```
 
+## ✨ 주요 특징
+
+### 1. 다중 항목 주문 시스템
+- 한 번의 주문으로 여러 메뉴를 다양한 수량으로 주문 가능
+- 예: 아메리카노 2개 + 카페라떼 1개를 한 번에 주문
+
+### 2. 동시성 제어
+- Redis 분산 락 + MySQL 비관적 락으로 포인트 차감 시 race condition 방지
+- 여러 서버 인스턴스 환경에서도 안전한 포인트 처리
+
+### 3. 실시간 인기 메뉴
+- 최근 7일간 주문 데이터 기반 TOP 3 메뉴 조회
+- Redis 캐싱으로 빠른 응답 속도 (TTL 5분)
+
+### 4. 비동기 이벤트 처리
+- Kafka를 통한 주문 이벤트 발행
+- 외부 시스템 장애 시에도 주문 프로세스 정상 동작
+
+### 5. 페이지네이션
+- 주문 내역 조회 시 페이지네이션 지원
+- 대량 데이터 조회 시 성능 최적화
+
 ## 📝 라이선스
 
 이 프로젝트는 학습 목적으로 작성되었습니다.
@@ -253,3 +331,18 @@ SERVER_PORT=8081
 
 - Backend Developer (3개월 경력)
 - 프로젝트 기간: 1주일
+
+## 📌 버전 히스토리
+
+### v1.1 (2026-05-08)
+- ✨ 다중 항목 주문 시스템 구현
+- ✨ 주문 내역 페이지네이션 지원
+- 🔧 order_items 테이블 추가
+- 📝 문서 업데이트 (ERD, API, 기능 명세서)
+
+### v1.0 (2026-05-06)
+- 🎉 초기 버전 출시
+- ✨ 기본 주문 시스템 구현
+- ✨ 포인트 충전/사용 기능
+- ✨ 인기 메뉴 조회 기능
+- ✨ 관리자 메뉴 관리 기능

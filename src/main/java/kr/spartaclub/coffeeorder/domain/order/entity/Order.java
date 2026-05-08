@@ -26,7 +26,6 @@ import lombok.NoArgsConstructor;
         name = "orders",
         indexes = {
                 @Index(name = "idx_user_order_time", columnList = "user_id, order_time"),
-                @Index(name = "idx_menu_order_time", columnList = "menu_id, order_time"),
                 @Index(name = "idx_order_time", columnList = "order_time")
         }
 )
@@ -43,11 +42,8 @@ public class Order {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "menu_id", nullable = false)
-    private Long menuId;
-
-    @Column(name = "price", nullable = false)
-    private Integer price;
+    @Column(name = "total_price", nullable = false)
+    private Integer totalPrice;
 
     @Column(name = "order_time", nullable = false)
     private LocalDateTime orderTime;
@@ -57,21 +53,19 @@ public class Order {
     private LocalDateTime createdAt;
 
     @Builder
-    public Order(Long userId, Long menuId, Integer price, LocalDateTime orderTime) {
+    public Order(Long userId, Integer totalPrice, LocalDateTime orderTime) {
         this.userId = userId;
-        this.menuId = menuId;
-        this.price = price;
+        this.totalPrice = totalPrice;
         this.orderTime = orderTime != null ? orderTime : LocalDateTime.now();
     }
 
     /**
      * 주문 생성 팩토리 메서드
      */
-    public static Order create(Long userId, Long menuId, Integer price) {
+    public static Order create(Long userId, Integer totalPrice) {
         return Order.builder()
                 .userId(userId)
-                .menuId(menuId)
-                .price(price)
+                .totalPrice(totalPrice)
                 .orderTime(LocalDateTime.now())
                 .build();
     }

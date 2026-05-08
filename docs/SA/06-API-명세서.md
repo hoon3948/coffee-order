@@ -330,14 +330,23 @@ Content-Type: application/json
 
 **Endpoint**: `POST /orders`
 
-**설명**: 메뉴를 주문하고 포인트로 결제합니다.
+**설명**: 여러 메뉴를 주문하고 포인트로 결제합니다.
 
 **인증**: 필요 (USER)
 
 **요청**:
 ```json
 {
-  "menuId": 1
+  "items": [
+    {
+      "menuId": 1,
+      "quantity": 2
+    },
+    {
+      "menuId": 2,
+      "quantity": 1
+    }
+  ]
 }
 ```
 
@@ -347,10 +356,25 @@ Content-Type: application/json
   "success": true,
   "data": {
     "orderId": 123,
-    "menuName": "아메리카노",
-    "price": 4500,
-    "pointBalance": 15500,
-    "orderTime": "2026-05-06T10:30:00"
+    "totalPrice": 14000,
+    "remainingBalance": 6000,
+    "orderTime": "2026-05-06T10:30:00",
+    "items": [
+      {
+        "menuId": 1,
+        "menuName": "아메리카노",
+        "quantity": 2,
+        "price": 4500,
+        "subtotal": 9000
+      },
+      {
+        "menuId": 2,
+        "menuName": "카페라떼",
+        "quantity": 1,
+        "price": 5000,
+        "subtotal": 5000
+      }
+    ]
   },
   "message": "주문이 완료되었습니다"
 }
@@ -373,7 +397,11 @@ Content-Type: application/json
 
 **인증**: 필요 (USER)
 
-**요청**: 없음
+**요청 파라미터**:
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|----------|------|------|--------|------|
+| page | Integer | ❌ | 0 | 페이지 번호 (0부터 시작) |
+| size | Integer | ❌ | 20 | 페이지 크기 |
 
 **응답** (200 OK):
 ```json
@@ -383,17 +411,41 @@ Content-Type: application/json
     "orders": [
       {
         "orderId": 123,
-        "menuName": "아메리카노",
-        "price": 4500,
-        "orderTime": "2026-05-06T10:30:00"
+        "totalPrice": 14000,
+        "orderTime": "2026-05-06T10:30:00",
+        "items": [
+          {
+            "menuName": "아메리카노",
+            "quantity": 2,
+            "price": 4500,
+            "subtotal": 9000
+          },
+          {
+            "menuName": "카페라떼",
+            "quantity": 1,
+            "price": 5000,
+            "subtotal": 5000
+          }
+        ]
       },
       {
         "orderId": 122,
-        "menuName": "카페라떼",
-        "price": 5000,
-        "orderTime": "2026-05-05T14:20:00"
+        "totalPrice": 5000,
+        "orderTime": "2026-05-05T14:20:00",
+        "items": [
+          {
+            "menuName": "카페라떼",
+            "quantity": 1,
+            "price": 5000,
+            "subtotal": 5000
+          }
+        ]
       }
-    ]
+    ],
+    "totalPages": 5,
+    "totalElements": 100,
+    "currentPage": 0,
+    "pageSize": 20
   },
   "message": "주문 내역 조회 성공"
 }
@@ -801,11 +853,23 @@ paths:
             schema:
               type: object
               required:
-                - menuId
+                - items
               properties:
-                menuId:
-                  type: integer
-                  format: int64
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - menuId
+                      - quantity
+                    properties:
+                      menuId:
+                        type: integer
+                        format: int64
+                      quantity:
+                        type: integer
+                        minimum: 1
       responses:
         '201':
           description: 주문 성공
@@ -837,3 +901,4 @@ paths:
 | 버전 | 작성일 | 작성자 | 변경 내역 |
 |------|--------|--------|-----------|
 | 1.0 | 2026-05-06 | Kiro | 초안 작성 |
+| 1.1 | 2026-05-08 | Kiro | 주문 API 업데이트: 다중 항목 주문 시스템 반영 |

@@ -13,8 +13,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Claims;
@@ -108,12 +106,18 @@ public class JwtTokenProvider {
             throw new RuntimeException("권한 정보가 없는 토큰입니다.");
         }
 
+        // UserPrincipal 생성
+        Long userId = claims.get("userId", Long.class);
+        String email = claims.getSubject();
+        String role = claims.get("role", String.class);
+        
+        UserPrincipal principal = UserPrincipal.of(userId, email, role);
+
         Collection<? extends GrantedAuthority> authorities =
-                Arrays.stream(claims.get("role").toString().split(","))
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                Arrays.stream(role.split(","))
+                        .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
                         .collect(Collectors.toList());
 
-        UserDetails principal = new User(claims.getSubject(), "", authorities);
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 

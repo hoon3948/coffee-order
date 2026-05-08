@@ -11,6 +11,8 @@ import kr.spartaclub.coffeeorder.domain.order.dto.CreateOrderRequest;
 import kr.spartaclub.coffeeorder.domain.order.dto.OrderHistoryResponse;
 import kr.spartaclub.coffeeorder.domain.order.dto.OrderResponse;
 import kr.spartaclub.coffeeorder.domain.order.entity.Order;
+import kr.spartaclub.coffeeorder.domain.order.entity.OrderItem;
+import kr.spartaclub.coffeeorder.domain.order.repository.OrderItemRepository;
 import kr.spartaclub.coffeeorder.domain.order.repository.OrderRepository;
 import kr.spartaclub.coffeeorder.domain.point.service.UserPointService;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +41,7 @@ import java.util.stream.Collectors;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final MenuRepository menuRepository;
     private final MenuStatisticsRepository menuStatisticsRepository;
     private final UserPointService userPointService;
@@ -53,11 +58,37 @@ public class OrderService {
     @Transactional
     public OrderResponse createOrder(Long userId, CreateOrderRequest request) {
         // 1. 메뉴 조회 및 검증
-        Menu menu = menuRepository.findById(request.getMenuId())
-                .orElseThrow(() -> new MenuNotFoundException(request.getMenuId()));
+        List<CreateOrderRequest.OrderItemRequest> itemRequests = request.getItems();
+        List<Long> menuIds = itemRequests.stream()
+                .map(CreateOrderRequest.OrderItemRequest::getMenuId)
+                .distinct()
+                .collect(Collectors.toList());
 
-        if (!menu.isAvailable()) {
-            throw new OrderException(ErrorCode.ORDER_002);
+        Map<Long, Menu> menuMap = menuRepository.findAllById(menuIds).stream()
+                .collect(Collectors.toMap(Menu::getId, menu -> menu));
+
+        // 메뉴 존재 여부 및 판매 가능 여부 확인
+        List<OrderResponse.OrderItemResponse> orderItemResponses = new ArrayList<>();
+        int totalPrice = 0;
+
+        for (CreateOrderRequest.OrderItemRequest itemRequest : itemRequests) {
+            Menu menu = menuMap.get(itemRequest.getMenuId());
+            if (menu == null) {
+                throw new MenuNotFoundException(itemRequest.getMenuId());
+            }
+            if (!menu.isAvailable()) {
+                throw new OrderException(ErrorCode.ORDER_002);
+            }
+
+            int subtotal = menu.getPrice() * itemRequest.getQuantity();
+            totalPrice += subtotal;
+
+            orderItemResponses.add(OrderResponse.OrderItemResponse.of(
+                    menu.getId(),
+                    menu.getName(),
+                    itemRequest.getQuantity(),
+                    menu.getPrice()
+            ));
         }
 
         // 2. 포인트 차감 (비관적 락 사용)
@@ -65,8 +96,8 @@ public class OrderService {
         try {
             remainingBalance = userPointService.usePoint(
                     userId,
-                    menu.getPrice(),
-                    "주문: " + menu.getName()
+                    totalPrice,
+                    "주문 결제"
             );
         } catch (IllegalArgumentException e) {
             if (e.getMessage().contains("포인트 잔액이 부족합니다")) {
@@ -76,19 +107,31 @@ public class OrderService {
         }
 
         // 3. 주문 생성
-        Order order = Order.create(userId, menu.getId(), menu.getPrice());
+        Order order = Order.create(userId, totalPrice);
         Order savedOrder = orderRepository.save(order);
 
-        log.info("주문 생성: orderId={}, userId={}, menuId={}, price={}", 
-                savedOrder.getId(), userId, menu.getId(), menu.getPrice());
+        // 4. 주문 상세 생성
+        for (CreateOrderRequest.OrderItemRequest itemRequest : itemRequests) {
+            Menu menu = menuMap.get(itemRequest.getMenuId());
+            OrderItem orderItem = OrderItem.create(
+                    savedOrder.getId(),
+                    menu.getId(),
+                    itemRequest.getQuantity(),
+                    menu.getPrice()
+            );
+            orderItemRepository.save(orderItem);
 
-        // 4. 메뉴 통계 업데이트 (비동기)
-        updateMenuStatistics(menu.getId());
+            // 메뉴 통계 업데이트 (비동기)
+            updateMenuStatistics(menu.getId(), itemRequest.getQuantity());
+        }
+
+        log.info("주문 생성: orderId={}, userId={}, totalPrice={}, itemCount={}",
+                savedOrder.getId(), userId, totalPrice, itemRequests.size());
 
         // 5. Kafka 이벤트 발행 (비동기)
-        publishOrderEvent(savedOrder, menu.getName());
+        publishOrderEvent(savedOrder, orderItemResponses);
 
-        return OrderResponse.of(savedOrder, menu.getName(), remainingBalance);
+        return OrderResponse.of(savedOrder, orderItemResponses, remainingBalance);
     }
 
     /**
@@ -105,11 +148,38 @@ public class OrderService {
                 userId, startDate, endDate, pageable
         );
 
+        // 주문 ID 목록 추출
+        List<Long> orderIds = orders.getContent().stream()
+                .map(Order::getId)
+                .collect(Collectors.toList());
+
+        // 주문 상세 목록 조회
+        List<OrderItem> orderItems = orderItemRepository.findByOrderIdIn(orderIds);
+        Map<Long, List<OrderItem>> orderItemMap = orderItems.stream()
+                .collect(Collectors.groupingBy(OrderItem::getOrderId));
+
+        // 메뉴 정보 조회
+        List<Long> menuIds = orderItems.stream()
+                .map(OrderItem::getMenuId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, Menu> menuMap = menuRepository.findAllByIdIncludingDeleted(menuIds).stream()
+                .collect(Collectors.toMap(Menu::getId, menu -> menu));
+
         return orders.map(order -> {
-            Menu menu = menuRepository.findByIdIncludingDeleted(order.getMenuId())
-                    .orElse(null);
-            String menuName = menu != null ? menu.getName() : "삭제된 메뉴";
-            return OrderHistoryResponse.of(order, menuName);
+            List<OrderItem> items = orderItemMap.getOrDefault(order.getId(), List.of());
+            List<OrderHistoryResponse.OrderItemInfo> itemInfos = items.stream()
+                    .map(item -> {
+                        Menu menu = menuMap.get(item.getMenuId());
+                        String menuName = menu != null ? menu.getName() : "삭제된 메뉴";
+                        return OrderHistoryResponse.OrderItemInfo.of(
+                                menuName,
+                                item.getQuantity(),
+                                item.getPrice()
+                        );
+                    })
+                    .collect(Collectors.toList());
+            return OrderHistoryResponse.of(order, itemInfos);
         });
     }
 
@@ -123,12 +193,39 @@ public class OrderService {
         Pageable pageable = PageRequest.of(0, limit);
         List<Order> orders = orderRepository.findRecentOrdersByUserId(userId, pageable);
 
+        // 주문 ID 목록 추출
+        List<Long> orderIds = orders.stream()
+                .map(Order::getId)
+                .collect(Collectors.toList());
+
+        // 주문 상세 목록 조회
+        List<OrderItem> orderItems = orderItemRepository.findByOrderIdIn(orderIds);
+        Map<Long, List<OrderItem>> orderItemMap = orderItems.stream()
+                .collect(Collectors.groupingBy(OrderItem::getOrderId));
+
+        // 메뉴 정보 조회
+        List<Long> menuIds = orderItems.stream()
+                .map(OrderItem::getMenuId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, Menu> menuMap = menuRepository.findAllByIdIncludingDeleted(menuIds).stream()
+                .collect(Collectors.toMap(Menu::getId, menu -> menu));
+
         return orders.stream()
                 .map(order -> {
-                    Menu menu = menuRepository.findByIdIncludingDeleted(order.getMenuId())
-                            .orElse(null);
-                    String menuName = menu != null ? menu.getName() : "삭제된 메뉴";
-                    return OrderHistoryResponse.of(order, menuName);
+                    List<OrderItem> items = orderItemMap.getOrDefault(order.getId(), List.of());
+                    List<OrderHistoryResponse.OrderItemInfo> itemInfos = items.stream()
+                            .map(item -> {
+                                Menu menu = menuMap.get(item.getMenuId());
+                                String menuName = menu != null ? menu.getName() : "삭제된 메뉴";
+                                return OrderHistoryResponse.OrderItemInfo.of(
+                                        menuName,
+                                        item.getQuantity(),
+                                        item.getPrice()
+                                );
+                            })
+                            .collect(Collectors.toList());
+                    return OrderHistoryResponse.of(order, itemInfos);
                 })
                 .collect(Collectors.toList());
     }
@@ -155,7 +252,7 @@ public class OrderService {
     /**
      * 메뉴 통계 업데이트 (비동기)
      */
-    private void updateMenuStatistics(Long menuId) {
+    private void updateMenuStatistics(Long menuId, int quantity) {
         try {
             LocalDate today = LocalDate.now();
             MenuStatistics statistics = menuStatisticsRepository
@@ -165,13 +262,14 @@ public class OrderService {
             if (statistics == null) {
                 // 오늘 날짜의 통계가 없으면 생성
                 statistics = MenuStatistics.createToday(menuId);
+                statistics.incrementOrderCount(quantity);
                 menuStatisticsRepository.save(statistics);
             } else {
                 // 기존 통계 업데이트
-                statistics.incrementOrderCount();
+                statistics.incrementOrderCount(quantity);
             }
 
-            log.debug("메뉴 통계 업데이트: menuId={}, date={}, count={}", 
+            log.debug("메뉴 통계 업데이트: menuId={}, date={}, count={}",
                     menuId, today, statistics.getOrderCount());
         } catch (Exception e) {
             log.error("메뉴 통계 업데이트 실패: menuId={}", menuId, e);
@@ -182,16 +280,20 @@ public class OrderService {
     /**
      * Kafka 주문 이벤트 발행 (비동기)
      */
-    private void publishOrderEvent(Order order, String menuName) {
+    private void publishOrderEvent(Order order, List<OrderResponse.OrderItemResponse> items) {
         try {
+            String itemsJson = items.stream()
+                    .map(item -> String.format("{\"menuId\":%d,\"menuName\":\"%s\",\"quantity\":%d,\"price\":%d}",
+                            item.getMenuId(), item.getMenuName(), item.getQuantity(), item.getPrice()))
+                    .collect(Collectors.joining(","));
+
             String message = String.format(
-                    "{\"orderId\":%d,\"userId\":%d,\"menuId\":%d,\"menuName\":\"%s\",\"price\":%d,\"orderTime\":\"%s\"}",
+                    "{\"orderId\":%d,\"userId\":%d,\"totalPrice\":%d,\"orderTime\":\"%s\",\"items\":[%s]}",
                     order.getId(),
                     order.getUserId(),
-                    order.getMenuId(),
-                    menuName,
-                    order.getPrice(),
-                    order.getOrderTime()
+                    order.getTotalPrice(),
+                    order.getOrderTime(),
+                    itemsJson
             );
 
             kafkaTemplate.send(ORDER_TOPIC, order.getId().toString(), message);
