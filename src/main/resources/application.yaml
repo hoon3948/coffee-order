@@ -4,6 +4,13 @@ spring:
   
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  
+  # HTTP 인코딩 설정
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 ---
 # Local Profile
@@ -14,9 +21,9 @@ spring:
   
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:coffee_order}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
-    username: ${DB_USERNAME:coffee_user}
-    password: ${DB_PASSWORD:coffee_password}
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:coffee_order}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -41,7 +48,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:redis_password}
+      password: ${REDIS_PASSWORD}
       timeout: 3000ms
       lettuce:
         pool:
@@ -89,7 +96,7 @@ logging:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:your-secret-key-change-this-in-production-min-256-bits-required-for-hs256-algorithm}
+  secret: ${JWT_SECRET}
   access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:3600000}  # 1시간
   refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:86400000}  # 24시간
 

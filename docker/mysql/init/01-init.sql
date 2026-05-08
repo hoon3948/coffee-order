@@ -2,6 +2,9 @@
 -- Version: 1.0
 -- Date: 2026-05-06
 
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 USE coffee_order;
 
 -- 1. users (사용자)
@@ -88,13 +91,13 @@ CREATE TABLE IF NOT EXISTS menu_statistics (
 
 -- 관리자 계정 (password: admin123)
 INSERT INTO users (email, password, name, role) VALUES
-('admin@coffee.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '관리자', 'ADMIN');
+('admin@coffee.com', '$2a$10$O3qllRSbB7/SZ3Zl9i0HTucv.WLS2xJklvunQLxO.fqHR2q.96A0.', '관리자', 'ADMIN');
 
--- 일반 사용자 (password: user123)
+-- 일반 사용자 (password: user1234)
 INSERT INTO users (email, password, name, role) VALUES
-('user1@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '홍길동', 'USER'),
-('user2@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '김철수', 'USER'),
-('user3@example.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '이영희', 'USER');
+('user1@example.com', '$2a$10$tJPXXUdNl/0ruuRzJOecI.yyvxEyLFpT57dxzDdkx9.cQ8Ke43Uty', '홍길동', 'USER'),
+('user2@example.com', '$2a$10$tJPXXUdNl/0ruuRzJOecI.yyvxEyLFpT57dxzDdkx9.cQ8Ke43Uty', '김철수', 'USER'),
+('user3@example.com', '$2a$10$tJPXXUdNl/0ruuRzJOecI.yyvxEyLFpT57dxzDdkx9.cQ8Ke43Uty', '이영희', 'USER');
 
 -- 사용자 포인트 초기화
 INSERT INTO user_points (user_id, balance) VALUES
