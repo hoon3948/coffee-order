@@ -15,9 +15,9 @@ erDiagram
     users ||--o{ user_points : has
     users ||--o{ orders : places
     users ||--o{ user_point_history : has
-    menus ||--o{ orders : "ordered in"
+    orders ||--o{ order_items : contains
+    menus ||--o{ order_items : "ordered in"
     menus ||--o{ menu_statistics : "tracked in"
-    orders }o--|| menus : contains
 
     users {
         bigint user_id PK
@@ -62,10 +62,19 @@ erDiagram
     orders {
         bigint order_id PK
         bigint user_id FK
-        bigint menu_id FK
-        int price
+        int total_price
         datetime order_time
         datetime created_at
+    }
+
+    order_items {
+        bigint order_item_id PK
+        bigint order_id FK
+        bigint menu_id FK
+        int quantity
+        int price
+        datetime created_at
+        datetime updated_at
     }
 
     menu_statistics {
@@ -201,27 +210,53 @@ erDiagram
 |--------|------|----------|------|------|
 | order_id | BIGINT | PK, AUTO_INCREMENT | 주문 ID | 1 |
 | user_id | BIGINT | FK, NOT NULL | 사용자 ID | 1 |
-| menu_id | BIGINT | FK, NOT NULL | 메뉴 ID | 1 |
-| price | INT | NOT NULL | 결제 금액 (주문 시점 가격) | 4500 |
+| total_price | INT | NOT NULL | 총 결제 금액 | 14000 |
 | order_time | DATETIME | NOT NULL | 주문 시간 | 2026-05-06 10:30:00 |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 생성 시간 | 2026-05-06 10:30:00 |
 
 **인덱스**:
 - PRIMARY KEY: `order_id`
 - INDEX: `user_id, order_time` (사용자별 주문 내역 조회)
-- INDEX: `menu_id, order_time` (메뉴별 주문 통계)
 - INDEX: `order_time` (기간별 주문 조회)
 - FOREIGN KEY: `user_id` REFERENCES `users(user_id)` ON DELETE CASCADE
-- FOREIGN KEY: `menu_id` REFERENCES `menus(menu_id)` ON DELETE RESTRICT
 
 **비즈니스 규칙**:
-- price는 주문 시점의 메뉴 가격을 저장 (가격 변동 이력 보존)
-- menu_id는 삭제 제한 (주문 내역 보존)
+- total_price는 주문 시점의 총 결제 금액을 저장
+- 주문 상세 정보는 order_items 테이블에 저장
 - 주문은 삭제 불가 (감사 추적)
 
 ---
 
-### 3.6 menu_statistics (메뉴 통계)
+### 3.6 order_items (주문 상세)
+
+**설명**: 주문별 메뉴 상세 정보를 저장하는 테이블
+
+| 컬럼명 | 타입 | 제약조건 | 설명 | 예시 |
+|--------|------|----------|------|------|
+| order_item_id | BIGINT | PK, AUTO_INCREMENT | 주문 상세 ID | 1 |
+| order_id | BIGINT | FK, NOT NULL | 주문 ID | 1 |
+| menu_id | BIGINT | FK, NOT NULL | 메뉴 ID | 1 |
+| quantity | INT | NOT NULL, CHECK > 0 | 수량 | 2 |
+| price | INT | NOT NULL | 단가 (주문 시점 가격) | 4500 |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 생성 시간 | 2026-05-06 10:30:00 |
+| updated_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP ON UPDATE | 수정 시간 | 2026-05-06 10:30:00 |
+
+**인덱스**:
+- PRIMARY KEY: `order_item_id`
+- INDEX: `order_id` (주문별 상세 조회)
+- INDEX: `menu_id` (메뉴별 주문 통계)
+- FOREIGN KEY: `order_id` REFERENCES `orders(order_id)` ON DELETE CASCADE
+- FOREIGN KEY: `menu_id` REFERENCES `menus(menu_id)` ON DELETE RESTRICT
+
+**비즈니스 규칙**:
+- price는 주문 시점의 메뉴 단가를 저장 (가격 변동 이력 보존)
+- quantity는 1개 이상이어야 함
+- menu_id는 삭제 제한 (주문 내역 보존)
+- 소계 = price × quantity
+
+---
+
+### 3.7 menu_statistics (메뉴 통계)
 
 **설명**: 날짜별 메뉴 주문 횟수를 저장하는 집계 테이블
 
@@ -271,12 +306,17 @@ ON DUPLICATE KEY UPDATE order_count = order_count + 1;
 - 주문은 1명의 사용자에게 속함
 - CASCADE 삭제: 사용자 삭제 시 주문도 삭제
 
-### 4.4 menus ↔ orders (1:N)
-- 메뉴는 여러 주문에 포함될 수 있음
-- 주문은 1개의 메뉴를 포함
+### 4.4 orders ↔ order_items (1:N)
+- 주문은 여러 주문 상세를 가짐
+- 주문 상세는 1개의 주문에 속함
+- CASCADE 삭제: 주문 삭제 시 주문 상세도 삭제
+
+### 4.5 menus ↔ order_items (1:N)
+- 메뉴는 여러 주문 상세에 포함될 수 있음
+- 주문 상세는 1개의 메뉴를 참조
 - RESTRICT 삭제: 주문이 있는 메뉴는 삭제 불가 (논리 삭제만 가능)
 
-### 4.5 menus ↔ menu_statistics (1:N)
+### 4.6 menus ↔ menu_statistics (1:N)
 - 메뉴는 여러 날짜의 통계를 가짐
 - 통계는 1개의 메뉴에 속함
 - CASCADE 삭제: 메뉴 삭제 시 통계도 삭제
@@ -380,6 +420,19 @@ INSERT INTO menus (name, price, description, ingredients, status) VALUES
 INSERT INTO user_points (user_id, balance) VALUES
 (1, 10000),
 (2, 5000);
+```
+
+### 8.4 orders (샘플)
+```sql
+INSERT INTO orders (user_id, total_price, order_time) VALUES
+(1, 14000, '2026-05-06 10:30:00');
+```
+
+### 8.5 order_items (샘플)
+```sql
+INSERT INTO order_items (order_id, menu_id, quantity, price) VALUES
+(1, 1, 2, 4500),  -- 아메리카노 2개
+(1, 2, 1, 5000);  -- 카페라떼 1개
 ```
 
 ---
@@ -520,14 +573,19 @@ LIMIT 3;
 ```sql
 SELECT 
     o.order_id,
+    o.total_price,
+    o.order_time,
+    oi.menu_id,
     m.name as menu_name,
-    o.price,
-    o.order_time
+    oi.quantity,
+    oi.price,
+    (oi.quantity * oi.price) as subtotal
 FROM orders o
-JOIN menus m ON o.menu_id = m.menu_id
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN menus m ON oi.menu_id = m.menu_id
 WHERE o.user_id = ?
   AND o.order_time >= CURDATE() - INTERVAL 30 DAY
-ORDER BY o.order_time DESC
+ORDER BY o.order_time DESC, oi.order_item_id
 LIMIT 100;
 ```
 
@@ -537,6 +595,17 @@ LIMIT 100;
 ```sql
 ALTER TABLE orders
 PARTITION BY RANGE (YEAR(order_time) * 100 + MONTH(order_time)) (
+    PARTITION p202605 VALUES LESS THAN (202606),
+    PARTITION p202606 VALUES LESS THAN (202607),
+    PARTITION p202607 VALUES LESS THAN (202608),
+    PARTITION pmax VALUES LESS THAN MAXVALUE
+);
+```
+
+**order_items 테이블 월별 파티셔닝** (orders와 동일):
+```sql
+ALTER TABLE order_items
+PARTITION BY RANGE (YEAR(created_at) * 100 + MONTH(created_at)) (
     PARTITION p202605 VALUES LESS THAN (202606),
     PARTITION p202606 VALUES LESS THAN (202607),
     PARTITION p202607 VALUES LESS THAN (202608),
@@ -594,3 +663,4 @@ FOR UPDATE;
 | 버전 | 작성일 | 작성자 | 변경 내역 |
 |------|--------|--------|-----------|
 | 1.0 | 2026-05-06 | Kiro | 초안 작성, V1.0 ERD + V2.0 확장 계획 |
+| 1.1 | 2026-05-08 | Kiro | orders, order_items 테이블 업데이트: 다중 항목 주문 시스템 반영 |

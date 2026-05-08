@@ -3,7 +3,6 @@ package kr.spartaclub.coffeeorder.domain.order.controller;
 import java.util.List;
 import java.util.Map;
 
-import kr.spartaclub.coffeeorder.global.security.UserPrincipal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +23,7 @@ import kr.spartaclub.coffeeorder.domain.order.dto.OrderResponse;
 import kr.spartaclub.coffeeorder.domain.order.service.OrderService;
 import kr.spartaclub.coffeeorder.global.common.response.ApiResponse;
 import kr.spartaclub.coffeeorder.global.security.CurrentUser;
+import kr.spartaclub.coffeeorder.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +49,7 @@ public class OrderController {
             @Valid @RequestBody CreateOrderRequest request
     ) {
         Long userId = principal.getUserId();
-        log.info("주문 생성 요청: userId={}, menuId={}", userId, request.getMenuId());
+        log.info("주문 생성 요청: userId={}, itemCount={}", userId, request.getItems().size());
 
         OrderResponse order = orderService.createOrder(userId, request);
         return ResponseEntity

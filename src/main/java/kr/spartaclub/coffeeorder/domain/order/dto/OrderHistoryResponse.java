@@ -1,36 +1,58 @@
 package kr.spartaclub.coffeeorder.domain.order.dto;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 import kr.spartaclub.coffeeorder.domain.order.entity.Order;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 /**
  * 주문 내역 응답 DTO
  */
 @Getter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class OrderHistoryResponse {
 
     private Long orderId;
-    private String menuName;
-    private Integer price;
+    private Integer totalPrice;
     private LocalDateTime orderTime;
+    private List<OrderItemInfo> items;
 
     /**
-     * Order 엔티티로부터 응답 생성
+     * Order 엔티티로부터 OrderHistoryResponse 생성
      */
-    public static OrderHistoryResponse of(Order order, String menuName) {
+    public static OrderHistoryResponse of(Order order, List<OrderItemInfo> items) {
         return OrderHistoryResponse.builder()
                 .orderId(order.getId())
-                .menuName(menuName)
-                .price(order.getPrice())
+                .totalPrice(order.getTotalPrice())
                 .orderTime(order.getOrderTime())
+                .items(items)
                 .build();
+    }
+
+    /**
+     * 주문 항목 정보 DTO
+     */
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class OrderItemInfo {
+        private String menuName;
+        private Integer quantity;
+        private Integer price;
+
+        public static OrderItemInfo of(String menuName, Integer quantity, Integer price) {
+            return OrderItemInfo.builder()
+                    .menuName(menuName)
+                    .quantity(quantity)
+                    .price(price)
+                    .build();
+        }
     }
 }

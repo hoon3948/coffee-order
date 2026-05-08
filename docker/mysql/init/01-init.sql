@@ -63,16 +63,29 @@ CREATE TABLE IF NOT EXISTS menus (
 CREATE TABLE IF NOT EXISTS orders (
     order_id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '주문 ID',
     user_id BIGINT NOT NULL COMMENT '사용자 ID',
-    menu_id BIGINT NOT NULL COMMENT '메뉴 ID',
-    price INT NOT NULL COMMENT '결제 금액 (주문 시점 가격)',
+    total_price INT NOT NULL COMMENT '총 결제 금액',
     order_time DATETIME NOT NULL COMMENT '주문 시간',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 시간',
     CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    CONSTRAINT fk_orders_menu FOREIGN KEY (menu_id) REFERENCES menus(menu_id) ON DELETE RESTRICT,
     INDEX idx_user_order_time (user_id, order_time),
-    INDEX idx_menu_order_time (menu_id, order_time),
     INDEX idx_order_time (order_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='주문 테이블';
+
+-- 5-1. order_items (주문 상세)
+CREATE TABLE IF NOT EXISTS order_items (
+    order_item_id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '주문 상세 ID',
+    order_id BIGINT NOT NULL COMMENT '주문 ID',
+    menu_id BIGINT NOT NULL COMMENT '메뉴 ID',
+    quantity INT NOT NULL COMMENT '수량',
+    price INT NOT NULL COMMENT '단가 (주문 시점 가격)',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성 시간',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정 시간',
+    CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_menu FOREIGN KEY (menu_id) REFERENCES menus(menu_id) ON DELETE RESTRICT,
+    CONSTRAINT chk_quantity CHECK (quantity > 0),
+    INDEX idx_order_id (order_id),
+    INDEX idx_menu_id (menu_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='주문 상세 테이블';
 
 -- 6. menu_statistics (메뉴 통계)
 CREATE TABLE IF NOT EXISTS menu_statistics (

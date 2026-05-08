@@ -45,14 +45,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     );
 
     /**
-     * 메뉴별 주문 내역 조회
-     * @param menuId 메뉴 ID
-     * @param pageable 페이징 정보
-     * @return 주문 목록
-     */
-    Page<Order> findByMenuIdOrderByOrderTimeDesc(Long menuId, Pageable pageable);
-
-    /**
      * 특정 기간의 주문 내역 조회
      * @param startDate 시작 날짜
      * @param endDate 종료 날짜
@@ -79,11 +71,4 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
      * @return 주문 횟수
      */
     long countByUserId(Long userId);
-
-    /**
-     * 메뉴의 총 주문 횟수 조회
-     * @param menuId 메뉴 ID
-     * @return 주문 횟수
-     */
-    long countByMenuId(Long menuId);
 }
