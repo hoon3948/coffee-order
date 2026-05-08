@@ -83,15 +83,13 @@ public class JwtTokenProvider {
      * @return JWT 토큰 문자열
      */
     private String createToken(Long userId, String email, String role, long validityInMilliseconds) {
-        Claims claims = Jwts.claims().subject(email).build();
-        claims.put("userId", userId);
-        claims.put("role", role);
-
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityInMilliseconds);
 
         return Jwts.builder()
-                .claims(claims)
+                .subject(email)
+                .claim("userId", userId)
+                .claim("role", role)
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(key, Jwts.SIG.HS256)
