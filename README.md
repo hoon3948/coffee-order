@@ -120,9 +120,14 @@ coffee-order/
 
 JWT (JSON Web Token) 기반 인증을 사용합니다.
 
+### 토큰 구조
+- **Access Token**: 1시간 유효
+- **토큰 내용**: userId, email, role (USER 또는 ADMIN)
+- **관리자 구분**: JWT의 role 필드로 구분 (별도 로그인 엔드포인트 없음)
+
 ### API 사용 예시
 
-#### 1. 로그인
+#### 1. 로그인 (일반 사용자)
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
@@ -148,7 +153,46 @@ curl -X POST http://localhost:8080/api/v1/orders \
   }'
 ```
 
-#### 4. 주문 내역 조회
+# 응답
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer"
+  },
+  "message": "로그인이 완료되었습니다."
+}
+```
+
+#### 2. 로그인 (관리자)
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@coffee.com","password":"admin123"}'
+
+# JWT 토큰에 role: "ADMIN" 포함
+```
+
+#### 3. 메뉴 조회 (인증 필요)
+```bash
+curl -X GET http://localhost:8080/api/v1/menus \
+  -H "Authorization: Bearer {your-jwt-token}"
+```
+
+#### 4. 주문 생성 (여러 메뉴 주문)
+```bash
+curl -X POST http://localhost:8080/api/v1/orders \
+  -H "Authorization: Bearer {your-jwt-token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {"menuId": 1, "quantity": 2},
+      {"menuId": 2, "quantity": 1}
+    ]
+  }'
+```
+
+#### 5. 주문 내역 조회
 ```bash
 curl -X GET "http://localhost:8080/api/v1/orders?page=0&size=20" \
   -H "Authorization: Bearer {your-jwt-token}"
@@ -333,6 +377,13 @@ SERVER_PORT=8081
 - 프로젝트 기간: 1주일
 
 ## 📌 버전 히스토리
+
+### v1.2 (2026-05-08)
+- 🔧 인증 시스템 간소화
+- 📝 Refresh Token 기능 제거 (Access Token만 사용)
+- 🔧 관리자 로그인 통합 (일반 로그인과 동일 엔드포인트, role로 구분)
+- 📝 로그인 응답 형식 간소화 (token, tokenType만 반환)
+- 📝 문서 업데이트 (기능 명세서, API 명세서)
 
 ### v1.1 (2026-05-08)
 - ✨ 다중 항목 주문 시스템 구현

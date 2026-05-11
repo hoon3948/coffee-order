@@ -88,13 +88,10 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "userId": 1,
-    "email": "user@example.com",
-    "name": "홍길동",
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer"
   },
-  "message": "회원가입이 완료되었습니다"
+  "message": "회원가입이 완료되었습니다."
 }
 ```
 
@@ -109,7 +106,7 @@ Content-Type: application/json
 
 **Endpoint**: `POST /auth/login`
 
-**설명**: 이메일과 비밀번호로 로그인합니다.
+**설명**: 이메일과 비밀번호로 로그인합니다. 일반 사용자와 관리자 모두 동일한 엔드포인트를 사용합니다.
 
 **인증**: 불필요
 
@@ -126,51 +123,29 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "userId": 1,
-    "email": "user@example.com",
-    "name": "홍길동",
-    "pointBalance": 10000,
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer"
   },
-  "message": "로그인 성공"
+  "message": "로그인이 완료되었습니다."
+}
+```
+
+**JWT 토큰 내용**:
+```json
+{
+  "userId": 1,
+  "email": "user@example.com",
+  "role": "USER",
+  "exp": 1620000000
 }
 ```
 
 **에러**:
 - `AUTH_004` (401): 이메일 또는 비밀번호가 일치하지 않습니다
 
----
-
-### 3.3 토큰 갱신
-
-**Endpoint**: `POST /auth/refresh`
-
-**설명**: Refresh Token으로 새 Access Token을 발급받습니다.
-
-**인증**: 불필요 (Refresh Token 필요)
-
-**요청**:
-```json
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**응답** (200 OK):
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  },
-  "message": "토큰 갱신 성공"
-}
-```
-
-**에러**:
-- `AUTH_005` (401): 인증이 만료되었습니다
-- `AUTH_006` (401): 유효하지 않은 토큰입니다
+**참고**:
+- 관리자 계정으로 로그인 시 JWT의 role이 "ADMIN"으로 설정됨
+- 관리자 API 접근 시 role 기반으로 권한 검증
 
 ---
 
@@ -457,41 +432,38 @@ Content-Type: application/json
 
 ## 7. 관리자 API
 
-### 7.1 관리자 로그인
+### 7.1 관리자 인증
 
-**Endpoint**: `POST /admin/auth/login`
+**참고**: 관리자는 일반 로그인 API (`POST /api/v1/auth/login`)를 사용합니다. JWT 토큰의 role 필드로 관리자 여부를 구분하며, 관리자 API는 `@PreAuthorize("hasRole('ADMIN')")` 어노테이션으로 보호됩니다.
 
-**설명**: 관리자 계정으로 로그인합니다.
-
-**인증**: 불필요
-
-**요청**:
-```json
-{
-  "email": "admin@example.com",
-  "password": "AdminPass123"
-}
+**관리자 로그인 예시**:
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@coffee.com","password":"admin123"}'
 ```
 
-**응답** (200 OK):
+**응답**:
 ```json
 {
   "success": true,
   "data": {
-    "userId": 10,
-    "email": "admin@example.com",
-    "name": "관리자",
-    "role": "ADMIN",
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "tokenType": "Bearer"
   },
-  "message": "관리자 로그인 성공"
+  "message": "로그인이 완료되었습니다."
 }
 ```
 
-**에러**:
-- `ADMIN_001` (403): 관리자 권한이 없습니다
-- `ADMIN_002` (401): 이메일 또는 비밀번호가 일치하지 않습니다
+**JWT 토큰 내용** (관리자):
+```json
+{
+  "userId": 1,
+  "email": "admin@coffee.com",
+  "role": "ADMIN",
+  "exp": 1620000000
+}
+```
 
 ---
 
@@ -638,15 +610,13 @@ Content-Type: application/json
 | 카테고리 | Method | Endpoint | 인증 | 설명 |
 |----------|--------|----------|------|------|
 | **인증** | POST | /auth/signup | ❌ | 회원가입 |
-| **인증** | POST | /auth/login | ❌ | 로그인 |
-| **인증** | POST | /auth/refresh | ❌ | 토큰 갱신 |
+| **인증** | POST | /auth/login | ❌ | 로그인 (일반/관리자 공통) |
 | **메뉴** | GET | /menus | ✅ USER | 전체 메뉴 조회 |
 | **메뉴** | GET | /menus/popular | ✅ USER | 인기 메뉴 조회 |
 | **포인트** | POST | /points/charge | ✅ USER | 포인트 충전 |
 | **포인트** | GET | /points | ✅ USER | 포인트 조회 |
 | **주문** | POST | /orders | ✅ USER | 주문 생성 |
 | **주문** | GET | /orders | ✅ USER | 주문 내역 조회 |
-| **관리자** | POST | /admin/auth/login | ❌ | 관리자 로그인 |
 | **관리자** | POST | /admin/menus | ✅ ADMIN | 메뉴 등록 |
 | **관리자** | PATCH | /admin/menus/{menuId} | ✅ ADMIN | 메뉴 수정 |
 | **관리자** | PATCH | /admin/menus/{menuId}/status | ✅ ADMIN | 메뉴 상태 변경 |
@@ -902,3 +872,4 @@ paths:
 |------|--------|--------|-----------|
 | 1.0 | 2026-05-06 | Kiro | 초안 작성 |
 | 1.1 | 2026-05-08 | Kiro | 주문 API 업데이트: 다중 항목 주문 시스템 반영 |
+| 1.2 | 2026-05-08 | Kiro | 인증 API 수정: Refresh Token 제거, 관리자 로그인 통합, 응답 형식 간소화 |
