@@ -132,6 +132,26 @@ JWT (JSON Web Token) 기반 인증을 사용합니다.
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"user1@example.com","password":"user123"}'
+```
+
+#### 2. 메뉴 조회 (인증 필요)
+```bash
+curl -X GET http://localhost:8080/api/v1/menus \
+  -H "Authorization: Bearer {your-jwt-token}"
+```
+
+#### 3. 주문 생성 (여러 메뉴 주문)
+```bash
+curl -X POST http://localhost:8080/api/v1/orders \
+  -H "Authorization: Bearer {your-jwt-token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {"menuId": 1, "quantity": 2},
+      {"menuId": 2, "quantity": 1}
+    ]
+  }'
+```
 
 # 응답
 {
